@@ -34,15 +34,16 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
-type Speaker = "student" | "cognito";
+type Speaker = "student" | "cognito" | "visitor";
 type ConversationMessage = { speaker: Speaker; text: string; final?: boolean };
 type PlanKey = "learn" | "practise" | "perform" | "recover";
-type ConversationKey = "canonical" | "time" | "difficulty" | "recall";
+type ConversationKey = "canonical" | "time" | "difficulty" | "recall" | "custom";
+type PresetConversationKey = Exclude<ConversationKey, "custom">;
 
 const canonicalOpening = "I study a lot, but during exams I forget everything.";
-const conversations: Record<ConversationKey, ConversationMessage[]> = {
+const conversations: Record<PresetConversationKey, ConversationMessage[]> = {
   canonical: [
     { speaker: "student", text: canonicalOpening },
     { speaker: "cognito", text: "When you forget, what usually happens first—does your mind go blank, do you rush, or do you start worrying about the result?" },
@@ -78,7 +79,7 @@ const conversations: Record<ConversationKey, ConversationMessage[]> = {
   ],
 };
 
-const alternativeOpenings: Array<{ key: Exclude<ConversationKey, "canonical">; label: string }> = [
+const alternativeOpenings: Array<{ key: Exclude<ConversationKey, "canonical" | "custom">; label: string }> = [
   { key: "time", label: "I know the content, but I always run out of time." },
   { key: "difficulty", label: "One difficult question ruins the rest of the exam for me." },
   { key: "recall", label: "I study for hours, but I cannot remember what I learned." },
@@ -231,7 +232,19 @@ function scrollToId(id: string) {
 function App() {
   const [conversationKey, setConversationKey] = useState<ConversationKey>("canonical");
   const [conversationStep, setConversationStep] = useState(1);
-  const conversation = useMemo(() => conversations[conversationKey], [conversationKey]);
+  const [customSentence, setCustomSentence] = useState("");
+  const conversation = useMemo(() => {
+    if (conversationKey !== "custom") return conversations[conversationKey];
+
+    return [
+      { speaker: "visitor" as const, text: customSentence },
+      {
+        speaker: "cognito" as const,
+        text: "Thank you for sharing that. For this fictional demonstration, we’ll now use Maya’s prepared example to show the complete product path.",
+      },
+      ...conversations.canonical,
+    ];
+  }, [conversationKey, customSentence]);
   const conversationRef = useRef<HTMLDivElement>(null);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [evidenceReady, setEvidenceReady] = useState(false);
@@ -284,14 +297,23 @@ function App() {
     window.setTimeout(() => conversationRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
   };
 
-  const loadEvidence = () => {
+  const loadEvidence = (stayOnEvidence = false) => {
+    if (stayOnEvidence) scrollToId("how-it-works");
     setEvidenceLoading(true);
     setEvidenceReady(false);
     window.setTimeout(() => {
       setEvidenceLoading(false);
       setEvidenceReady(true);
-      window.setTimeout(() => scrollToId("understands"), 100);
+      if (!stayOnEvidence) window.setTimeout(() => scrollToId("understands"), 100);
     }, 900);
+  };
+
+  const startCustomConversation = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const sentence = customSentence.trim();
+    if (!sentence) return;
+    setCustomSentence(sentence);
+    replayConversation("custom");
   };
 
   const startReset = () => {
@@ -328,6 +350,17 @@ function App() {
             <PrimaryButton onClick={() => replayConversation("canonical")} testId="start-conversation">Start with your own words</PrimaryButton>
             <button className="text-button" onClick={() => scrollToId("how-it-works")}>See how it works <ArrowDown size={16} /></button>
           </div>
+          <form className="hero-conversation-input" onSubmit={startCustomConversation}>
+            <MessageCircle size={18} aria-hidden="true" />
+            <input
+              value={customSentence}
+              onChange={(event) => setCustomSentence(event.target.value)}
+              placeholder="Tell me what studying and exams feel like for you…"
+              aria-label="Tell Cognito what studying and exams feel like"
+            />
+            <button type="submit" disabled={!customSentence.trim()}>Continue <ArrowRight size={16} /></button>
+          </form>
+          <p className="hero-input-note">Fictional local demo • Your sentence is used only in this browser, then Maya’s fictional example demonstrates the full path.</p>
           <div className="hero-promise">
             <div className="promise-icon"><HeartHandshake size={20} /></div>
             <p><strong>Do not tell students to calm down.</strong><br />Train them how to come back.</p>
@@ -342,9 +375,14 @@ function App() {
           </div>
           <div className="conversation-body">
             {conversation.slice(0, conversationStep).map((message, index) => (
-              <div className={`message-row ${message.speaker} ${message.final ? "final" : ""}`} key={`${message.text}-${index}`}>
-                <span className="speaker-label">{message.speaker === "student" ? "Maya" : "Cognito"}</span>
+              <div className={`message-row ${message.speaker === "cognito" ? "cognito" : "student"} ${message.final ? "final" : ""}`} key={`${message.text}-${index}`}>
+                <span className="speaker-label">{message.speaker === "visitor" ? "You" : message.speaker === "student" ? "Maya" : "Cognito"}</span>
                 <div className="message-bubble">{message.text}</div>
+                {message.final && (
+                  <button className="message-evidence-button" onClick={() => loadEvidence(true)}>
+                    Add Maya’s fictional exam result <ArrowRight size={14} />
+                  </button>
+                )}
               </div>
             ))}
             {conversationStep < conversation.length && (
@@ -470,7 +508,7 @@ function App() {
         />
         <div className="mode-comparison">
           <article className="mode-card preparation">
-            <div className="mode-top"><span className="mode-icon"><BookOpen size={23} /></span><div><small>CALM + UNTILTED</small><h3>Preparation Mode</h3></div><span className="status-dot">Comfortable</span></div>
+            <div className="mode-top"><span className="mode-icon"><BookOpen size={23} /></span><div><small>CALM + UNTIMED</small><h3>Preparation Mode</h3></div><span className="status-dot">Comfortable</span></div>
             <div className="mode-score"><strong>82%</strong><span>Accuracy</span></div>
             <div className="confidence"><div><span>Confidence</span><b>8/10</b></div><div className="confidence-track"><i style={{ width: "80%" }} /></div></div>
             <div className="mode-stat"><Clock3 size={18} /><span>Average response time</span><strong>18 sec</strong></div>
