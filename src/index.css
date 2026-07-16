@@ -24,8 +24,9 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; min-width: 320px; background: #fbfcff; }
+body { margin: 0; min-width: 320px; background: #fbfcff; font-weight: 600; }
 button, a { font: inherit; }
+input, textarea, select { font: inherit; font-weight: 600; }
 button { cursor: pointer; }
 button:focus-visible, a:focus-visible { outline: 3px solid rgba(55, 169, 237, .42); outline-offset: 3px; }
 button:disabled { opacity: .7; cursor: wait; }
