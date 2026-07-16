@@ -39,35 +39,49 @@ import { useEffect, useMemo, useRef, useState } from "react";
 type Speaker = "student" | "cognito";
 type ConversationMessage = { speaker: Speaker; text: string; final?: boolean };
 type PlanKey = "learn" | "practise" | "perform" | "recover";
+type ConversationKey = "canonical" | "time" | "difficulty" | "recall";
 
 const canonicalOpening = "I study a lot, but during exams I forget everything.";
-const alternativeOpenings = [
-  "I know the content, but I always run out of time.",
-  "One difficult question ruins the rest of the exam for me.",
-  "I study for hours, but I cannot remember what I learned.",
-];
+const conversations: Record<ConversationKey, ConversationMessage[]> = {
+  canonical: [
+    { speaker: "student", text: canonicalOpening },
+    { speaker: "cognito", text: "When you forget, what usually happens first—does your mind go blank, do you rush, or do you start worrying about the result?" },
+    { speaker: "student", text: "I see everyone else writing and panic." },
+    { speaker: "cognito", text: "Whose expectations feel strongest at that moment—your own, your parents’, your teachers’, or other students’?" },
+    { speaker: "student", text: "Mostly mine and my parents’." },
+    { speaker: "cognito", text: "When you practise the same questions at home without a timer, how do you usually perform?" },
+    { speaker: "cognito", text: "Your answers suggest that you may understand more than you can currently demonstrate under pressure. Let’s add one of your recent exam papers or result reports so we can check.", final: true },
+  ],
+  time: [
+    { speaker: "student", text: "I know the content, but I always run out of time." },
+    { speaker: "cognito", text: "When time starts feeling tight, what changes first—do you rush, keep checking the clock, or get stuck on one answer?" },
+    { speaker: "student", text: "I check the clock, then rush the rest." },
+    { speaker: "cognito", text: "When you do the same questions at home without a timer, do you usually finish them?" },
+    { speaker: "student", text: "Yes. I finish them and get most right." },
+    { speaker: "cognito", text: "That difference matters. We can check whether the missing marks come from knowledge, pacing, or the pressure that starts when time feels scarce.", final: true },
+  ],
+  difficulty: [
+    { speaker: "student", text: "One difficult question ruins the rest of the exam for me." },
+    { speaker: "cognito", text: "When that question appears, what do you usually do—keep trying, panic, or start thinking about the mark you might lose?" },
+    { speaker: "student", text: "I keep trying because I feel like I should know it." },
+    { speaker: "cognito", text: "What happens to the next few questions after that?" },
+    { speaker: "student", text: "I’m behind, and I stop trusting every answer." },
+    { speaker: "cognito", text: "This may be less about one hard question and more about how long its pressure follows you. Let’s check that pattern against a recent result.", final: true },
+  ],
+  recall: [
+    { speaker: "student", text: "I study for hours, but I cannot remember what I learned." },
+    { speaker: "cognito", text: "When you try to remember, is the information missing straight away, or does it disappear once you feel tested?" },
+    { speaker: "student", text: "At home I can recognise it, but in a test my mind goes blank." },
+    { speaker: "cognito", text: "Do you usually practise bringing ideas back without notes before you see them in a test?" },
+    { speaker: "student", text: "Not really. I mostly reread and highlight." },
+    { speaker: "cognito", text: "That gives us a useful starting point: build recall when calm, then practise retrieving it under gentle pressure. Let’s add some evidence to shape the path.", final: true },
+  ],
+};
 
-const buildConversation = (opening: string): ConversationMessage[] => [
-  { speaker: "student", text: opening },
-  {
-    speaker: "cognito",
-    text: "When you forget, what usually happens first—does your mind go blank, do you rush, or do you start worrying about the result?",
-  },
-  { speaker: "student", text: "I see everyone else writing and panic." },
-  {
-    speaker: "cognito",
-    text: "Whose expectations feel strongest at that moment—your own, your parents’, your teachers’, or other students’?",
-  },
-  { speaker: "student", text: "Mostly mine and my parents’." },
-  {
-    speaker: "cognito",
-    text: "When you practise the same questions at home without a timer, how do you usually perform?",
-  },
-  {
-    speaker: "cognito",
-    text: "Your answers suggest that you may understand more than you can currently demonstrate under pressure. Let’s add one of your recent exam papers or result reports so we can check.",
-    final: true,
-  },
+const alternativeOpenings: Array<{ key: Exclude<ConversationKey, "canonical">; label: string }> = [
+  { key: "time", label: "I know the content, but I always run out of time." },
+  { key: "difficulty", label: "One difficult question ruins the rest of the exam for me." },
+  { key: "recall", label: "I study for hours, but I cannot remember what I learned." },
 ];
 
 const evidenceOptions = [
@@ -215,9 +229,9 @@ function scrollToId(id: string) {
 }
 
 function App() {
-  const [opening, setOpening] = useState(canonicalOpening);
+  const [conversationKey, setConversationKey] = useState<ConversationKey>("canonical");
   const [conversationStep, setConversationStep] = useState(1);
-  const conversation = useMemo(() => buildConversation(opening), [opening]);
+  const conversation = useMemo(() => conversations[conversationKey], [conversationKey]);
   const conversationRef = useRef<HTMLDivElement>(null);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [evidenceReady, setEvidenceReady] = useState(false);
@@ -263,8 +277,8 @@ function App() {
   const currentReset = resetSteps[currentResetIndex];
   const CurrentResetIcon = currentReset.icon;
 
-  const replayConversation = (nextOpening = opening) => {
-    setOpening(nextOpening);
+  const replayConversation = (nextKey: ConversationKey = conversationKey) => {
+    setConversationKey(nextKey);
     setConversationStep(0);
     window.setTimeout(() => setConversationStep(1), 80);
     window.setTimeout(() => conversationRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
@@ -298,7 +312,7 @@ function App() {
           <a href="#plan">Your path</a>
           <a href="#exam-reset">Exam Reset</a>
         </nav>
-        <button className="header-action" onClick={() => replayConversation(canonicalOpening)}>Start the demo <ArrowRight size={16} /></button>
+        <button className="header-action" onClick={() => replayConversation("canonical")}>Start the demo <ArrowRight size={16} /></button>
       </header>
 
       <section className="hero" id="top">
@@ -311,7 +325,7 @@ function App() {
             Tell Cognito what studying and tests feel like for you. Cognito asks the next useful question, checks your experience against school evidence and creates a personal path forward.
           </p>
           <div className="hero-actions">
-            <PrimaryButton onClick={() => replayConversation(canonicalOpening)} testId="start-conversation">Start with your own words</PrimaryButton>
+            <PrimaryButton onClick={() => replayConversation("canonical")} testId="start-conversation">Start with your own words</PrimaryButton>
             <button className="text-button" onClick={() => scrollToId("how-it-works")}>See how it works <ArrowDown size={16} /></button>
           </div>
           <div className="hero-promise">
@@ -342,8 +356,8 @@ function App() {
 
         <div className="opening-examples">
           <span>Or start with:</span>
-          {alternativeOpenings.map((example) => (
-            <button key={example} onClick={() => replayConversation(example)}>“{example}”</button>
+          {alternativeOpenings.map(({ key, label }) => (
+            <button key={key} onClick={() => replayConversation(key)}>“{label}”</button>
           ))}
         </div>
       </section>
@@ -679,7 +693,7 @@ function App() {
           <div className="transform-result"><Sparkles size={23} /><strong>A personal learning and performance path</strong></div>
         </div>
         <p className="final-line">Cognito trains the knowledge—<span>and the mind that must retrieve it.</span></p>
-        <button className="final-button" onClick={() => replayConversation(canonicalOpening)}>Experience the path again <RotateCcw size={17} /></button>
+        <button className="final-button" onClick={() => replayConversation("canonical")}>Experience the path again <RotateCcw size={17} /></button>
       </section>
 
       <footer>
